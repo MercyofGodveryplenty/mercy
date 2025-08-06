@@ -1,4 +1,4 @@
-const apiKey = 'YOUR_API_KEY_HERE'; // Replace with your actual API key!
+const apiKey = '021ebbc03b60e4b3b2ff1dff34dd3846'; // Replace with your actual API key!
 const recentLimit = 5;
 
 // Theme Switcher
