@@ -7,5 +7,11 @@
 <body>
     <h1>Welcome to My Weather Website</h1>
     <p>Check the weather in your city!</p>
+
+    <input type="text" id="cityInput" placeholder="Enter city name">
+    <button onclick="showCity()">Show City</button>
+    <p id="result"></p>
+    
+    <script src="script.js"></script>
 </body>
 </html>
