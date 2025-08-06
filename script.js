@@ -1,127 +1,138 @@
-:root {
-    --bg-light: #e0f7fa;
-    --bg-dark: #263238;
-    --text-light: #333;
-    --text-dark: #f5f5f5;
-    --accent: #00796b;
-}
+const apiKey = 'YOUR_API_KEY_HERE'; // Replace with your actual API key!
+const recentLimit = 5;
 
-body {
-    font-family: Arial, sans-serif;
-    background: var(--bg-light);
-    color: var(--text-light);
-    margin: 0;
-    padding: 0;
-    transition: background 0.3s, color 0.3s;
-}
+// Theme Switcher
+document.addEventListener("DOMContentLoaded", () => {
+    const themeToggle = document.getElementById("theme-toggle");
+    themeToggle.addEventListener("click", toggleTheme);
+    if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+    }
+    loadRecentSearches();
+});
 
-body.dark {
-    background: var(--bg-dark);
-    color: var(--text-dark);
-}
-
-.container {
-    max-width: 400px;
-    margin: 2rem auto;
-    padding: 2rem;
-    background: rgba(255,255,255,0.9);
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-}
-
-body.dark .container {
-    background: rgba(38,50,56,0.95);
-}
-
-h1 {
-    color: var(--accent);
-}
-
-input[type="text"] {
-    padding: 0.5rem;
-    font-size: 1rem;
-    width: 80%;
-    margin-bottom: 0.5rem;
-    border-radius: 4px;
-    border: 1px solid #bbb;
-}
-
-button {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    border-radius: 4px;
-    border: none;
-    background: var(--accent);
-    color: #fff;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
-}
-
-button#theme-toggle {
-    float: right;
-    background: #444;
-}
-
-#loading {
-    font-style: italic;
-    color: #888;
-}
-
-.hidden {
-    display: none;
-}
-
-#result {
-    margin-top: 1rem;
-    padding: 1rem;
-    border-radius: 6px;
-    background: #fafafa;
-    min-height: 60px;
-}
-
-body.dark #result {
-    background: #37474f;
-}
-
-.weather-icon {
-    width: 50px;
-    vertical-align: middle;
-}
-
-#recent {
-    margin-top: 2rem;
-}
-
-#recentList {
-    list-style: none;
-    padding-left: 0;
-}
-
-#recentList li {
-    cursor: pointer;
-    padding: 0.2rem 0.5rem;
-    margin-bottom: 4px;
-    border-radius: 3px;
-    transition: background 0.2s;
-}
-
-#recentList li:hover {
-    background: var(--accent);
-    color: #fff;
-}
-
-@media (max-width: 500px) {
-    .container {
-        width: 95%;
-        padding: 1rem;
+// Show weather for city
+async function showCity(cityInput = null) {
+    const city = cityInput || document.getElementById('cityInput').value.trim();
+    if (!city) {
+        showError("Please enter a city name.");
+        return;
     }
 
-    h1 {
-        font-size: 1.3rem;
-    }
+    showLoading(true);
+    clearResult();
 
-    input[type="text"], button {
-        width: 90%;
-        font-size: 1rem;
+    // OpenWeatherMap API
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('City not found. Please try again.');
+        }
+        const data = await response.json();
+
+        // Weather details
+        const temp = data.main.temp;
+        const feels = data.main.feels_like;
+        const desc = data.weather[0].description;
+        const humidity = data.main.humidity;
+        const wind = data.wind.speed;
+        const country = data.sys.country;
+        const icon = data.weather[0].icon;
+        const timezone = data.timezone;
+
+        // Get local time
+        const localTime = getLocalTime(timezone);
+
+        // Weather icon
+        const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
+        // Display
+        document.getElementById('result').innerHTML = `
+            <div>
+                <img class="weather-icon" src="${iconUrl}" alt="${desc}">
+                <strong>${city}, ${country}</strong>
+            </div>
+            <div>Local Time: ${localTime}</div>
+            <div>Temperature: ${temp}°C (Feels like: ${feels}°C)</div>
+            <div>Description: ${desc}</div>
+            <div>Humidity: ${humidity}%</div>
+            <div>Wind Speed: ${wind} m/s</div>
+        `;
+
+        addRecentSearch(city);
+    } catch (error) {
+        showError(error.message || "An error occurred.");
+    } finally {
+        showLoading(false);
     }
 }
+
+// Get local time based on timezone offset (seconds)
+function getLocalTime(offsetSeconds) {
+    const utc = new Date().getTime() + new Date().getTimezoneOffset() * 60000;
+    const local = new Date(utc + (offsetSeconds * 1000));
+    return local.toLocaleString();
+}
+
+// Show loading spinner/message
+function showLoading(show) {
+    document.getElementById('loading').classList.toggle('hidden', !show);
+}
+
+// Show error message
+function showError(msg) {
+    document.getElementById('result').innerHTML = `<span style="color: red;">${msg}</span>`;
+}
+
+// Clear result
+function clearResult() {
+    document.getElementById('result').innerHTML = "";
+}
+
+// Recent Searches: Save to localStorage
+function addRecentSearch(city) {
+    let recents = JSON.parse(localStorage.getItem('recentCities') || "[]");
+    city = city.trim();
+    recents = recents.filter(c => c.toLowerCase() !== city.toLowerCase());
+    recents.unshift(city);
+    if (recents.length > recentLimit) recents = recents.slice(0, recentLimit);
+    localStorage.setItem('recentCities', JSON.stringify(recents));
+    loadRecentSearches();
+}
+
+// Load recent searches
+function loadRecentSearches() {
+    const recents = JSON.parse(localStorage.getItem('recentCities') || "[]");
+    const list = document.getElementById('recentList');
+    list.innerHTML = "";
+    if (recents.length === 0) {
+        document.getElementById('recent').style.display = "none";
+        return;
+    }
+    document.getElementById('recent').style.display = "block";
+    recents.forEach(city => {
+        const li = document.createElement('li');
+        li.textContent = city;
+        li.onclick = () => {
+            document.getElementById('cityInput').value = city;
+            showCity(city);
+        };
+        list.appendChild(li);
+    });
+}
+
+// Theme switcher
+function toggleTheme() {
+    document.body.classList.toggle("dark");
+    const theme = document.body.classList.contains("dark") ? "dark" : "light";
+    localStorage.setItem("theme", theme);
+}
+
+// Allow Enter key to search
+document.getElementById('cityInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        showCity();
+    }
+});
